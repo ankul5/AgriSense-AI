@@ -1,0 +1,16 @@
+{
+  "Single threshold (30 %)": {
+    "switches": 1292,
+    "pump_minutes": 113.8,
+    "min_moisture": 32.7,
+    "mean_moisture": 33.8,
+    "std_moisture": 1.2
+  },
+  "AgriSense hysteresis (30/70 %)": {
+    "switches": 16,
+    "pump_minutes": 120.0,
+    "min_moisture": 34.4,
+    "mean_moisture": 40.7,
+    "std_moisture": 3.2
+  }
+}

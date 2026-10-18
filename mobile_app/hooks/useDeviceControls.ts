@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import * as controls from '../lib/controls';
 import type { AutomationMode, DeviceConfigRow, Timer } from '../lib/types';
@@ -9,6 +9,9 @@ const COMMAND_PENDING_TIMEOUT_MS = 10000;
 const defaultThresholds = { startThreshold: 70, stopThreshold: 85, maxRuntimeMins: 20 };
 
 export function useDeviceControls(deviceId: string | null) {
+  // Dashboard and Soil tabs both mount this hook; supabase-js returns the
+  // existing channel for a repeated topic, so each instance needs its own name.
+  const uid = useId();
   const { session } = useAuth();
   const [pumpState, setPumpState] = useState<'RUNNING' | 'OFF'>('OFF');
   const [automationMode, setAutomationModeState] = useState<AutomationMode>('NONE');
@@ -88,7 +91,7 @@ export function useDeviceControls(deviceId: string | null) {
     // this is what proves a pump/automation change actually took effect,
     // whether it came from this app, the website, a timer, or automation.
     channelRef.current = supabase
-      .channel(`config-${deviceId}`)
+      .channel(`config-${deviceId}-${uid}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'device_config', filter: `device_id=eq.${deviceId}` },

@@ -26,6 +26,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="soil"
+        options={{
+          title: 'Soil',
+          tabBarIcon: ({ color, size }) => <Feather name="droplet" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="scan"
         options={{
           title: 'Plant Scan',

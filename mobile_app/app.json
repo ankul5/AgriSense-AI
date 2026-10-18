@@ -8,9 +8,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0d1117",
-    "newArchEnabled": true,
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-status-bar",
+      "expo-font"
     ],
     "runtimeVersion": {
       "policy": "fingerprint"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { computeConnectionState } from '../lib/connection';
 import type {
@@ -57,6 +57,9 @@ function telemetryFromRow(row: TelemetryRow): TelemetrySnapshot {
 }
 
 export function useDeviceLive(deviceId: string | null) {
+  // Dashboard and Soil tabs both mount this hook; supabase-js returns the
+  // existing channel for a repeated topic, so each instance needs its own name.
+  const uid = useId();
   const [presence, setPresence] = useState<Presence>(emptyPresence);
   const [telemetry, setTelemetry] = useState<TelemetrySnapshot>(emptyTelemetry);
   const [history, setHistory] = useState<History>(emptyHistory);
@@ -120,7 +123,7 @@ export function useDeviceLive(deviceId: string | null) {
     seed(deviceId);
 
     channelsRef.current.telemetry = supabase
-      .channel(`telemetry-${deviceId}`)
+      .channel(`telemetry-${deviceId}-${uid}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'telemetry_data', filter: `device_id=eq.${deviceId}` },
@@ -137,7 +140,7 @@ export function useDeviceLive(deviceId: string | null) {
       .subscribe();
 
     channelsRef.current.status = supabase
-      .channel(`status-${deviceId}`)
+      .channel(`status-${deviceId}-${uid}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'device_status', filter: `device_id=eq.${deviceId}` },

@@ -194,8 +194,7 @@ HIGH, the Serial log prints "Pump OFF", and the motor keeps running.
   use a 3.3 V-logic relay module, or drive `IN` through an NPN transistor.
 
 #### Signal and load wiring
-
-```
+ ```
 Relay Module:              ESP32 board:
   IN   ─────────────────►  RX2   (right side, labeled RX2 or IO16 = GPIO16)
   GND  ─────────────────►  GND
