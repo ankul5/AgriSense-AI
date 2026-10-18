@@ -34,3 +34,8 @@ Thumbs.db
 
 # Node dependencies (mobile_app / web_dashboard)
 node_modules/
+
+# Papers, posters and other non-code documents live outside the repo
+paper/
+*.docx
+*.pdf
