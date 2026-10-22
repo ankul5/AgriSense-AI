@@ -67,6 +67,11 @@ PLANT_API_KEY = os.getenv("PLANT_API_KEY")
 # returns the key to the client.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+# Tried in order when GEMINI_MODEL is overloaded ("high demand" 503) or rate-limited.
+GEMINI_FALLBACK_MODELS = [
+    m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-2.5-flash,gemini-2.5-flash-lite").split(",")
+    if m.strip()
+]
 
 # ESP32-CAM live view. The camera authenticates with this shared secret (it
 # has no user login, same idea as PLANT_API_KEY); browsers/app authenticate
@@ -672,6 +677,30 @@ or ambiguous photos.
 - notes: one short sentence with any caveat (e.g. blurry photo, multiple leaves, early stage)."""
 
 
+async def _gemini_generate(body: dict) -> tuple[httpx.Response, str]:
+    """Call Gemini, moving to the next model when one is overloaded (503),
+    rate-limited (429) or erroring (500/504). Returns (response, model used)."""
+    last_resp, last_model = None, GEMINI_MODEL
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for model in [GEMINI_MODEL, *GEMINI_FALLBACK_MODELS]:
+            try:
+                resp = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                    params={"key": GEMINI_API_KEY},
+                    json=body,
+                )
+            except httpx.RequestError as e:
+                last_resp, last_model = None, model
+                last_err = e
+                continue
+            last_resp, last_model = resp, model
+            if resp.status_code not in (429, 500, 503, 504):
+                return resp, model
+    if last_resp is None:
+        raise HTTPException(status_code=502, detail=f"Could not reach Gemini: {last_err}")
+    return last_resp, last_model
+
+
 @app.post("/api/plant/predict")
 async def plant_predict(file: UploadFile = File(...), authorization: str = Header(...)):
     """
@@ -732,15 +761,7 @@ async def plant_predict(file: UploadFile = File(...), authorization: str = Heade
     }
 
     start = time.perf_counter()
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                params={"key": GEMINI_API_KEY},
-                json=body,
-            )
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Could not reach Gemini: {e}")
+    resp, model_used = await _gemini_generate(body)
 
     if resp.status_code != 200:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
@@ -757,7 +778,7 @@ async def plant_predict(file: UploadFile = File(...), authorization: str = Heade
         raise HTTPException(status_code=502, detail=f"Gemini returned malformed diagnosis: {e}")
 
     inference_ms = int((time.perf_counter() - start) * 1000)
-    return finalize_plant_diagnosis(diagnosis, GEMINI_MODEL, inference_ms)
+    return finalize_plant_diagnosis(diagnosis, model_used, inference_ms)
 
 
 def finalize_plant_diagnosis(diagnosis: dict, model_version: str, inference_ms: int) -> dict:
@@ -839,15 +860,7 @@ async def advisor_ask(payload: AdvisorPayload, authorization: str = Header(...))
         "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.7},
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                params={"key": GEMINI_API_KEY},
-                json=body,
-            )
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Could not reach Gemini: {e}")
+    resp, _ = await _gemini_generate(body)
 
     if resp.status_code != 200:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
