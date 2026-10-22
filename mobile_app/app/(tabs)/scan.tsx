@@ -13,6 +13,10 @@ import { useAuth } from '../../hooks/useAuth';
 import { diagnosePlant } from '../../lib/plant';
 import type { PlantDiagnosis, PlantSeverity } from '../../lib/types';
 
+// Lower JPEG quality keeps the upload small (faster over mobile data) while
+// leaf lesions stay clearly visible to the model.
+const PHOTO_QUALITY = 0.5;
+
 function formatLabel(value: string | null | undefined): string {
   if (!value) return 'Unknown';
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -70,7 +74,7 @@ export default function ScanScreen() {
       Alert.alert('Camera permission needed', 'Enable camera access to scan a plant.');
       return;
     }
-    const picked = await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: true });
+    const picked = await ImagePicker.launchCameraAsync({ quality: PHOTO_QUALITY, allowsEditing: true });
     if (picked.canceled || !picked.assets?.[0]) return;
     setPhotoUri(picked.assets[0].uri);
     await runDiagnosis(picked.assets[0].uri);
@@ -83,8 +87,8 @@ export default function ScanScreen() {
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
+      mediaTypes: ['images'],
+      quality: PHOTO_QUALITY,
       allowsEditing: true,
     });
     if (picked.canceled || !picked.assets?.[0]) return;

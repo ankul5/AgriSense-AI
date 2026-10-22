@@ -2,6 +2,7 @@
 // Routes through backend/main.py's /api/plant/predict proxy, never
 // directly to the plant-disease serving API — that API's key must stay
 // server-side (see plant-disease-implementation-plan.md Phase J).
+import { File } from 'expo-file-system';
 import { BACKEND_BASE } from './supabase';
 import type { PlantDiagnosis } from './types';
 
@@ -24,10 +25,11 @@ export async function diagnosePlant(photoUri: string, token: string): Promise<Pl
   const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
   const formData = new FormData();
-  // React Native's fetch/FormData accepts this {uri, name, type} shape in
-  // place of a real Blob/File — do NOT set a Content-Type header manually,
-  // fetch sets the multipart boundary itself from the FormData body.
-  formData.append('file', { uri: photoUri, name: filename, type: mimeType } as unknown as Blob);
+  // Expo's fetch/FormData (SDK 52+) rejects the old RN {uri, name, type}
+  // shape ("unsupported FormDataPart implementation") and wants a real
+  // Blob — expo-file-system's File is one. Do NOT set a Content-Type header
+  // manually, fetch sets the multipart boundary itself from the FormData body.
+  formData.append('file', new File(photoUri), filename);
 
   const resp = await fetch(`${BACKEND_BASE}/api/plant/predict`, {
     method: 'POST',
